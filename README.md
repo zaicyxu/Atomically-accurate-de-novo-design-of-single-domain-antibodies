@@ -7,6 +7,9 @@ To explore the design of antibodies, we fine-tuned RFdiffusion predominantly on 
 
 (RFdiffusion 使用蛋白质骨架的 AlphaFold214/RF2 框架表示，包括每个残基的 Cɑ 坐标和 N-Cɑ-C 刚性方向。 在训练期间，使用噪声计划，在一定数量的“时间步长”(T) 上，将蛋白质框架破坏为与随机分布无法区分的分布（Cɑ 坐标被 3D 高斯噪声破坏，残基方向被 SO3 上的布朗运动破坏） ）。 在训练期间，对 PDB 结构和随机时间步 (t) 进行采样，并将 t 个噪声步骤应用于该结构。 RFdiffusion 在每个时间步预测去噪 (pX0) 结构，并最小化真实结构 (X0) 和预测之间的均方误差 (m.s.e.) 损失。 在推理时，从 3D 高斯分布和均匀旋转分布 (XT) 中采样翻译，RFdiffusion 迭代地对这些帧进行去噪以生成新的蛋白质结构。
 
+
+
+
 为了探索抗体的设计，我们主要在抗体复合物结构上微调射频扩散（图 1；方法）。 在训练的每个步骤中，都会对抗体复合物结构以及随机时间步 (t) 进行采样，并添加此数量的噪声步以破坏抗体结构（但不会破坏目标结构）。 为了允许在推理时指定框架结构和序列，在训练期间向 RFdiffusion 提供框架序列和结构（图 1B）。 由于需要通过 RFdiffusion 以及 CDR 环构象来设计抗体和靶标之间的刚体位置（对接），因此在训练期间以全局框架不变的方式提供框架结构（图 1C）。 我们利用 RF/RFdiffusion 的“模板轨迹”来提供框架结构，作为每对残基之间的成对距离和二面角的 2D 矩阵（可以准确概括 3D 结构的表示形式）15，（扩展数据图 1）。 1A）。 框架和目标模板指定了每个蛋白质链的内部结构，但不指定它们在 3D 空间中的相对位置（在这项工作中，我们保持框架区的序列和结构固定，并仅关注 CDR 和整体的设计） 针对目标的抗体的刚体放置）。 在普通 RFdiffusion 中，通过使用额外的单热点编码“热点”特征进行训练，可以在推理时将 de novo 结合物靶向特定表位，该特征提供了设计的结合物应与之相互作用的残基的一部分。 对于抗体设计，我们寻求 CDR 环介导的相互作用，我们调整此特征来指定与 CDR 环相互作用的目标蛋白上的残基.)
 
 ### **Fine-tuning RoseTTAFold2 for antibody design validation**
@@ -26,3 +29,44 @@ When this fine-tuned RF2 network is used to re-predict the structure of RFdiffus
 当这个微调的 RF2 网络用于重新预测 RFdiffusion 设计的 VHH 的结构时，可以自信地预测很大一部分会以几乎相同的方式与设计的结构结合（扩展数据图 4A）。 此外，计算机交叉反应性分析表明，很少预测 RFdiffusion 设计的 VHH 会与不相关的蛋白质结合（扩展数据图 4B）。 根据 Rosetta ddG 的测量（扩展数据图 4C），预计 VHH 能够与其设计的靶标结合，从而形成高质量的界面。 事实上，我们的 RFdiffusion 抗体设计流程生成的许多设计序列均由 RF2 预测采用设计的结构和结合模式，这表明 RF2 过滤可能会丰富实验上成功的结合物。）
 
 RFdiffusion经过基因组打乱增加噪声训练后，根据自定义需求预测得到的蛋白质结构需要经过RoseTTAFold2进行验证。
+
+
+## Coding
+
+Links: https://github.com/RosettaCommons/RFdiffusion
+
+To get started using RFdiffusion, clone the repo:
+
+git clone https://github.com/RosettaCommons/RFdiffusion.git
+
+then need to download the model weights into the RFDiffusion directory.
+
+cd RFdiffusion
+mkdir models && cd models
+wget http://files.ipd.uw.edu/pub/RFdiffusion/6f5902ac237024bdd0c176cb93063dc4/Base_ckpt.pt
+wget http://files.ipd.uw.edu/pub/RFdiffusion/e29311f6f1bf1af907f9ef9f44b8328b/Complex_base_ckpt.pt
+wget http://files.ipd.uw.edu/pub/RFdiffusion/60f09a193fb5e5ccdc4980417708dbab/Complex_Fold_base_ckpt.pt
+wget http://files.ipd.uw.edu/pub/RFdiffusion/74f51cfb8b440f50d70878e05361d8f0/InpaintSeq_ckpt.pt
+wget http://files.ipd.uw.edu/pub/RFdiffusion/76d00716416567174cdb7ca96e208296/InpaintSeq_Fold_ckpt.pt
+wget http://files.ipd.uw.edu/pub/RFdiffusion/5532d2e1f3a4738decd58b19d633b3c3/ActiveSite_ckpt.pt
+wget http://files.ipd.uw.edu/pub/RFdiffusion/12fc204edeae5b57713c5ad7dcb97d39/Base_epoch8_ckpt.pt
+
+Optional:
+wget http://files.ipd.uw.edu/pub/RFdiffusion/f572d396fae9206628714fb2ce00f72e/Complex_beta_ckpt.pt
+
+# original structure prediction weights
+wget http://files.ipd.uw.edu/pub/RFdiffusion/1befcb9b28e2f778f53d47f18b7597fa/RF_structure_prediction_weights.pt
+
+Alternatively, I recommend using the link to manually download the weights file.
+
+Next:
+cd RFdiffusion
+
+conda env create -f env/SE3nv.yml
+
+conda activate SE3nv
+cd env/SE3Transformer
+pip install --no-cache-dir -r requirements.txt
+python setup.py install
+cd ../.. # change into the root directory of the repository
+pip install -e . # install the rfdiffusion module from the root of the repository
